@@ -43,10 +43,12 @@ async function initBot() {
         webHook: { port },
       });
 
-      // Domain settings for Vercel
-      const domain = process.env.VERCEL_URL || process.env.RAILWAY_STATIC_URL;
+      // Get domain from environment variables
+      const domain = process.env.RENDER_EXTERNAL_URL || process.env.VERCEL_URL || process.env.RAILWAY_STATIC_URL;
       if (domain) {
-        const webhookUrl = `https://${domain}/bot${token}`;
+        const webhookPath = `/api/webhook`;
+        const webhookUrl = `${domain}${webhookPath}`;
+        
         try {
           // First clear existing webhook
           await bot.deleteWebHook();
@@ -62,7 +64,7 @@ async function initBot() {
           });
         }
       } else {
-        console.log("Vercel/Railway URL not found, activating polling mode...");
+        console.log("No domain found (RENDER_EXTERNAL_URL/VERCEL_URL/RAILWAY_STATIC_URL), activating polling mode...");
         bot = new TelegramBot(token, {
           polling: true,
           filepath: false,

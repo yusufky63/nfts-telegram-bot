@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: nfts-telegram-bot
+    env: node
+    buildCommand: npm install
+    startCommand: node index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TELEGRAM_TOKEN
+        sync: false 
