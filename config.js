@@ -70,6 +70,6 @@ module.exports = {
     GATE: "https://api.gateio.ws/api/v4/spot/tickers?currency_pair=TIA_USDT",
   },
 
-  // Timeout Ayarı
-  FETCH_TIMEOUT: 30000, // 30 saniye
+  // Timeout Setting
+  FETCH_TIMEOUT: 30000, // 30 seconds
 };

@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 const config = require('./config');
 
-// API istekleri için timeout mekanizması
+// Timeout mechanism for API requests
 async function fetchWithTimeout(url, timeout = config.FETCH_TIMEOUT) {
     try {
         const controller = new AbortController();
@@ -16,39 +16,39 @@ async function fetchWithTimeout(url, timeout = config.FETCH_TIMEOUT) {
         
         return await response.json();
     } catch (error) {
-        console.error(`Fetch hatası (${url}):`, error);
+        console.error(`Fetch error (${url}):`, error);
         throw error;
     }
 }
 
-// Sayıyı formatla
+// Format number
 function formatNumber(number) {
     if (typeof number !== 'number') return '0';
     
-    // ETH değerleri için 4 ondalık basamak göster
+    // Show 4 decimal places for ETH values
     if (number < 1) {
         return number.toFixed(4);
     }
     
-    // Diğer değerler için 2 ondalık basamak göster
-    return number.toLocaleString('tr-TR', {
+    // Show 2 decimal places for other values
+    return number.toLocaleString('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });
 }
 
-// USD formatla
+// Format USD
 function formatUSD(number) {
     if (typeof number !== 'number') return '$0';
-    return `$${number.toLocaleString('tr-TR', {
+    return `$${number.toLocaleString('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     })}`;
 }
 
-// Hata mesajını formatla
+// Format error message
 function getErrorMessage(error) {
-    return error.response?.data?.message || error.message || 'Bilinmeyen bir hata oluştu';
+    return error.response?.data?.message || error.message || 'An unknown error occurred';
 }
 
 module.exports = {

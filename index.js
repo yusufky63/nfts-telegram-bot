@@ -20,88 +20,76 @@ process.on("uncaughtException", (error) => {
 const app = express();
 app.use(express.json());
 
-// Bot başlatma
+// Bot initialization
 let bot;
 let server;
 
-// NFTService instance'ını oluştur
+// Create NFTService instance
 const nftService = new NFTService();
 
-// Bot başlatma fonksiyonu
+// Bot initialization function
 async function initBot() {
   try {
-    // Eğer önceki server varsa kapat
+    // Close previous server if exists
     if (server) {
       server.close();
     }
 
     if (process.env.NODE_ENV === "production") {
-      // Production'da webhook kullan
+      // Use webhook in production
       const port = process.env.PORT || 3000;
 
       bot = new TelegramBot(token, {
         webHook: { port },
       });
 
-      const domain = process.env.RAILWAY_STATIC_URL;
+      // Domain settings for Vercel
+      const domain = process.env.VERCEL_URL || process.env.RAILWAY_STATIC_URL;
       if (domain) {
         const webhookUrl = `https://${domain}/bot${token}`;
         try {
-          // Önce mevcut webhook'u temizle
+          // First clear existing webhook
           await bot.deleteWebHook();
-          // Sonra yeni webhook'u ayarla
+          // Then set new webhook
           await bot.setWebHook(webhookUrl);
-          console.log("Webhook ayarlandı:", webhookUrl);
+          console.log("Webhook set:", webhookUrl);
         } catch (error) {
-          console.error("Webhook ayarlanırken hata:", error);
-          console.log("Polling mode aktif ediliyor...");
+          console.error("Error setting webhook:", error);
+          console.log("Activating polling mode...");
           bot = new TelegramBot(token, {
             polling: true,
             filepath: false,
           });
         }
       } else {
-        console.log("Railway URL bulunamadı, polling mode aktif ediliyor...");
+        console.log("Vercel/Railway URL not found, activating polling mode...");
         bot = new TelegramBot(token, {
           polling: true,
           filepath: false,
         });
       }
 
-      // Express server'ı başlat
+      // Start Express server
       server = app.listen(port, () => {
-        console.log(`Server ${port} portunda çalışıyor`);
+        console.log(`Server running on port ${port}`);
       });
     } else {
-      // Development'da polling kullan
-      // Önce mevcut webhook'u temizle
-      const tempBot = new TelegramBot(token, { polling: false });
-      await tempBot.deleteWebHook();
-
+      // Use polling in development
       bot = new TelegramBot(token, {
         polling: true,
         filepath: false,
       });
-      console.log("Development mode - Polling aktif");
+      console.log("Development mode - Polling active");
 
       server = app.listen(3001, () => {
-        console.log("Development server 3001 portunda çalışıyor");
+        console.log("Development server running on port 3001");
       });
     }
 
-    // Event handlers'ı ayarla
+    // Set up event handlers
     setupEventHandlers();
-
-    // Webhook endpoint
-    app.post(`/bot${token}`, (req, res) => {
-      bot.handleUpdate(req.body);
-      res.sendStatus(200);
-    });
-
-    return bot;
   } catch (error) {
-    console.error("Bot başlatılırken hata:", error);
-    throw error;
+    console.error("Bot initialization error:", error);
   }
 }
 
@@ -117,30 +105,30 @@ process.on("SIGTERM", async () => {
   process.exit(0);
 });
 
-// Event handler'ları ayarla
+// Event handlers setup
 function setupEventHandlers() {
   bot.on("error", (error) => {
-    console.error("Bot hatası:", error);
+    console.error("Bot error:", error);
   });
 
   bot.on("polling_error", (error) => {
-    console.error("Polling hatası:", error);
+    console.error("Polling error:", error);
   });
 
-  // Test komutu
+  // Test command
   bot.onText(/\/test/, async (msg) => {
     const chatId = msg.chat.id;
-    const messageThreadId = msg.message_thread_id; // Konu ID'sini al
+    const messageThreadId = msg.message_thread_id; // Get topic ID
     
     const messageOptions = {
       parse_mode: 'HTML',
       message_thread_id: messageThreadId
     };
     
-    // Test mesajını gönder
+    // Send test message
     const sentMessage = await bot.sendMessage(chatId, "Bot Working! 🤖", messageOptions);
     
-    // 15 saniye sonra mesajı sil
+    // Delete message after 15 seconds
     setTimeout(async () => {
       try {
         await bot.deleteMessage(chatId, sentMessage.message_id);
@@ -152,11 +140,11 @@ function setupEventHandlers() {
     console.log("Test command received:", msg);
   });
 
-  // Start komutu
+  // Start command
   bot.onText(/\/start/, async (msg) => {
     try {
       const chatId = msg.chat.id;
-      const messageThreadId = msg.message_thread_id; // Konu ID'sini al
+      const messageThreadId = msg.message_thread_id; // Get topic ID
       const mainMenu = messageFormatter.getMainMenu();
       
       const messageOptions = {
@@ -164,7 +152,7 @@ function setupEventHandlers() {
         message_thread_id: messageThreadId
       };
       
-      // Ana menüyü gönder
+      // Send main menu
       await bot.sendMessage(chatId, mainMenu, messageOptions);
       
     } catch (error) {
@@ -180,11 +168,11 @@ function setupEventHandlers() {
     }
   });
 
-  // Help komutu
+  // Help command
   bot.onText(/\/help/, async (msg) => {
     try {
       const chatId = msg.chat.id;
-      const messageThreadId = msg.message_thread_id; // Konu ID'sini al
+      const messageThreadId = msg.message_thread_id; // Get topic ID
       const helpMessage = messageFormatter.formatHelpMessage();
       
       const messageOptions = {
@@ -192,7 +180,7 @@ function setupEventHandlers() {
         message_thread_id: messageThreadId
       };
       
-      // Yardım mesajını gönder
+      // Send help message
       await bot.sendMessage(chatId, helpMessage, messageOptions);
       
     } catch (error) {
@@ -208,13 +196,13 @@ function setupEventHandlers() {
     }
   });
 
-  // Debug için mesaj dinleyici
+  // Debug message listener
   bot.on("message", (msg) => {
       console.log("New message received:", msg);
   });
 }
 
-// Bot'u başlat
+// Start the bot
 initBot()
   .then(() => {
     console.log("🤖 Bot service started!");
@@ -239,21 +227,100 @@ app.get("/", (req, res) => {
   res.send("Bot is active!");
 });
 
+// Health check endpoint for Vercel
+module.exports = (req, res) => {
+  res.setHeader('Content-Type', 'text/html');
+  res.status(200).send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>NFT Telegram Bot</title>
+        <style>
+            body { 
+                font-family: Arial, sans-serif; 
+                margin: 0; 
+                padding: 20px; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                text-align: center;
+            }
+            .container {
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 40px;
+                background: rgba(255,255,255,0.1);
+                border-radius: 15px;
+                backdrop-filter: blur(10px);
+            }
+            h1 { font-size: 2.5em; margin-bottom: 20px; }
+            p { font-size: 1.2em; margin: 10px 0; }
+            .status { 
+                padding: 15px; 
+                background: rgba(34, 197, 94, 0.2); 
+                border-radius: 10px; 
+                margin: 20px 0;
+                border: 1px solid rgba(34, 197, 94, 0.5);
+            }
+            .bot-info {
+                margin-top: 30px;
+                padding: 20px;
+                background: rgba(255,255,255,0.05);
+                border-radius: 10px;
+            }
+            a { color: #60a5fa; text-decoration: none; }
+            a:hover { text-decoration: underline; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🤖 NFT Telegram Bot</h1>
+            
+            <div class="status">
+                <h2>✅ Bot Status: Active</h2>
+                <p>Webhook is configured and ready to receive updates</p>
+            </div>
+            
+            <div class="bot-info">
+                <h3>📊 Supported NFT Collections:</h3>
+                <p>• Eclipse (ASC, AOFE, Validators)</p>
+                <p>• Stargaze (Sloth, OMies, Whale Sharks)</p>
+                <p>• Magic Eden (Raccoon, Vana, Quills, Mad Lads, Pythenians)</p>
+                <p>• Berachain (Bullas, Steady Teddys)</p>
+                <p>• Modularium (Mammoths)</p>
+            </div>
+            
+            <div class="bot-info">
+                <h3>🚀 Commands:</h3>
+                <p><code>/start</code> - Main menu</p>
+                <p><code>/test</code> - Test bot functionality</p>
+                <p><code>/all</code> - Get all NFT prices</p>
+                <p><code>/help</code> - Show help menu</p>
+            </div>
+            
+            <p style="margin-top: 30px; opacity: 0.8;">
+                Powered by Vercel • Last updated: ${new Date().toLocaleString()}
+            </p>
+        </div>
+    </body>
+    </html>
+  `);
+};
+
 // Handler function for NFT commands
 async function handleNftCommand(msg, nftType) {
   const chatId = msg.chat.id;
-  const messageThreadId = msg.message_thread_id; // Konu (topic) ID'sini al
+  const messageThreadId = msg.message_thread_id; // Get topic (topic) ID
   const keepMessage = msg.text.includes('_k') || msg.text.includes('-k') || msg.text.includes('-keep');
   
   try {
-    // Loading mesajını kaldırıyoruz
+    // Remove loading message
     // const messageOptions = messageThreadId ? { message_thread_id: messageThreadId } : {};
     // const loadingMessage = await bot.sendMessage(chatId, 'Loading data...', messageOptions);
     
     const prices = await nftService.getNFTPrices();
     const message = messageFormatter.formatSingleNFTMessage(nftType, prices, keepMessage);
     
-    // Yanıtı gönderirken konu ID'sini ekle ve refresh butonu ekle
+    // Send response with topic ID and refresh button
     const sentMessage = await bot.sendMessage(chatId, message, { 
       parse_mode: 'HTML',
       message_thread_id: messageThreadId,
@@ -264,10 +331,10 @@ async function handleNftCommand(msg, nftType) {
       }
     });
     
-    // Loading mesajını silmeye gerek yok
+    // No need to delete loading message
     // await bot.deleteMessage(chatId, loadingMessage.message_id);
     
-    // Eğer keepMessage false ise 15 saniye sonra mesajı sil
+    // If keepMessage is false, delete message after 15 seconds
     if (!keepMessage) {
       setTimeout(async () => {
         try {
@@ -288,16 +355,16 @@ async function handleNftCommand(msg, nftType) {
 // Callback query handler
 bot.on("callback_query", async (query) => {
   const chatId = query.message.chat.id;
-  const messageThreadId = query.message.message_thread_id; // Konu ID'sini al
+  const messageThreadId = query.message.message_thread_id; // Get topic ID
   const data = query.data;
   
-  // Refresh komutlarını işlemek için
+  // Process refresh commands
   if (data.startsWith('refresh_')) {
-    // Yanıtı sil
+    // Delete response
     await bot.deleteMessage(chatId, query.message.message_id);
     
     const nftType = data.replace('refresh_', '');
-    await bot.answerCallbackQuery(query.id); // Sessiz yanıt
+    await bot.answerCallbackQuery(query.id); // Silent response
     
     try {
       const prices = await nftService.getNFTPrices();
@@ -339,9 +406,9 @@ bot.on("callback_query", async (query) => {
   console.log("Callback data:", data); // For debugging
 
   try {
-    // Loading mesajını kaldırıyoruz
+    // Remove loading message
     // await bot.answerCallbackQuery(query.id, { text: "Loading data..." });
-    await bot.answerCallbackQuery(query.id); // Sessiz yanıt
+    await bot.answerCallbackQuery(query.id); // Silent response
 
     let message = "";
     let markup = {};
@@ -386,21 +453,21 @@ bot.on("callback_query", async (query) => {
   }
 });
 
-// Tüm NFT'ler
+// All NFTs
 bot.onText(/\/(all(?:_k)?(?:\s*-k|\s*-keep)?)/, async (msg) => {
   const chatId = msg.chat.id;
-  const messageThreadId = msg.message_thread_id; // Konu ID'sini al
+  const messageThreadId = msg.message_thread_id; // Get topic ID
   const keepMessage = msg.text.includes('_k') || msg.text.includes('-k') || msg.text.includes('-keep');
   
   try {
-    // Loading mesajını kaldırıyoruz
+    // Remove loading message
     // const messageOptions = messageThreadId ? { message_thread_id: messageThreadId } : {};
     // const loadingMessage = await bot.sendMessage(chatId, 'Loading data...', messageOptions);
     
     const prices = await nftService.getNFTPrices();
     const message = messageFormatter.formatNFTMessage(prices, keepMessage);
     
-    // Mesajı gönder
+    // Send message
     const sentMessage = await bot.sendMessage(
       chatId, 
       message, 
@@ -415,10 +482,10 @@ bot.onText(/\/(all(?:_k)?(?:\s*-k|\s*-keep)?)/, async (msg) => {
       }
     );
     
-    // Loading mesajını silmeye gerek yok
+    // No need to delete loading message
     // await bot.deleteMessage(chatId, loadingMessage.message_id);
     
-    // Eğer keepMessage false ise 15 saniye sonra mesajı sil
+    // If keepMessage is false, delete message after 15 seconds
     if (!keepMessage) {
       setTimeout(async () => {
         try {
@@ -508,10 +575,10 @@ bot.onText(/\/(steady_teddys(?:_k)?(?:\s*-k|\s*-keep)?)/, async (msg) => {
   await handleNftCommand(msg, "steady_teddys");
 });
 
-// Hata yakalama
+// Error handling
 bot.on("polling_error", (error) => {
   console.error("Bot polling error:", error);
 });
 
-// Bot başlatıldı mesajı
+// Bot started message
 console.log("Bot started! 🚀");
