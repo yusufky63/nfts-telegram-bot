@@ -37,7 +37,7 @@ async function initBot() {
 
     if (process.env.NODE_ENV === "production") {
       // Use webhook in production
-      const port = process.env.PORT || 3000;
+      const port = parseInt(process.env.PORT || "3000", 10);
 
       bot = new TelegramBot(token, {
         webHook: { port },

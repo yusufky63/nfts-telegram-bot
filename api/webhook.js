@@ -9,12 +9,19 @@ if (!token) {
   console.error('TELEGRAM_TOKEN not found in environment variables!');
 }
 
-const bot = new TelegramBot(token);
+// Initialize bot with webhook mode
+const bot = new TelegramBot(token, {
+  webHook: {
+    port: parseInt(process.env.PORT || "3000", 10)
+  }
+});
+
 const nftService = new NFTService();
 
-// Webhook handler for Vercel
+// Webhook handler for Render
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
+    res.setHeader('Allow', ['POST']);
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
@@ -22,7 +29,7 @@ module.exports = async (req, res) => {
     const { body } = req;
     console.log('Webhook received:', JSON.stringify(body, null, 2));
 
-    // Telegram güncellemesini işle
+    // Process Telegram update
     await processUpdate(body);
     
     res.status(200).json({ ok: true });
